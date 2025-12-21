@@ -140,6 +140,7 @@
 
 ### 6.3 정량 평가 기준 (Metrics)
 
+
 ---
 
 ## 7. 실행 방법 (How to Run)
@@ -164,10 +165,19 @@ python -m src.cli build-index --model snowflake
 python -m src.cli build-index --model jina
 ```
 ### 7.4 텍스트 검색 (Retreval)
+ver1
 ```bash
 python -m src.cli search --model snowflake --q "운동 후 단백질 많은 음식" --topk 10
 python -m src.cli search --model jina --q "운동 후 단백질 많은 음식" --topk 10
 ```
+ver2 중복 토큰 방지 및 쿼리 확장
+```bash
+python -m src.cli search --model snowflake --q "야식" --topk 10 \
+  --max-same-cat-mid 2 --max-same-token 1
+  python -m src.cli search --model jina --q "야식" --topk 10 \
+  --max-same-cat-mid 2 --max-same-token 1
+```
+
 ### 7.5 영양소 기반 추천 (Nutreint-only Rerank)
 ```bash
 python -m src.cli recommend --protein-min 15 --sugar-max 5 --sodium-max 500 --topk 10
