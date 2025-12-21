@@ -170,7 +170,7 @@ python -m src.cli search --model jina --q "운동 후 단백질 많은 음식" -
 ```
 ### 7.5 영양소 기반 추천 (Nutreint-only Rerank)
 ```bash
-python -m src.cli recommend --model snowflake --protein-min 15 --sugar-max 5 --sodium-max 500 --topk 10
+python -m src.cli recommend --protein-min 15 --sugar-max 5 --sodium-max 500 --topk 10
 ```
 ### 7.6 Hybrid (텍스트 후보 풀 -> 영양소 재랭킹)
 ```bash
