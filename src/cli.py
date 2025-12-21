@@ -20,6 +20,7 @@ from .recommender import (
 from .eval_queries import EVAL_QUERIES
 from .query_expansion import expand_query
 from .diversify import diversify_results
+from .post_filter import apply_category_guardrails
 
 MODEL_MAP = {
     "snowflake": settings.model_snowflake,
@@ -85,6 +86,10 @@ def cmd_search(args):
     # 먼저 넉넉히 뽑고(raw_topk), 그 다음 다양화로 topk 구성
     raw_topk = max(args.topk * 10, args.topk)  # 기본: 10배 후보 풀
     hits_raw = search_index(index, embedder, meta, q, topk=raw_topk)
+
+    # cat_large 기반 가드레일 적용
+    hits_raw = apply_category_guardrails(hits_raw, kind=args.kind, query_text=args.q)
+
     hits = diversify_results(
         hits_raw,
         topk=args.topk,
@@ -184,6 +189,8 @@ def cmd_hybrid(args):
     # 후보 풀(pool) 확보 후, 다양화로 도배 감소
     hits_raw = search_index(index, embedder, meta, q, topk=args.pool)
 
+    hits_raw = apply_category_guardrails(hits_raw, kind=args.kind, query_text=args.q)
+
     hits_div = diversify_results(
         hits_raw,
         topk=args.pool_diversified,  # 다양화 후 남길 후보 수(재랭킹 후보 풀)
@@ -271,8 +278,8 @@ def cmd_compare(args):
     for item in EVAL_QUERIES:
         q0 = item["q"]
         notes = item.get("notes", "")
+        kind = item.get("kind", "food")
 
-        # compare도 동일하게 확장 적용
         q = expand_query(q0) if args.use_query_expansion else q0
 
         for mk in models:
@@ -282,6 +289,16 @@ def cmd_compare(args):
             hits_raw = search_index(
                 r["index"], r["embedder"], r["meta"], q, topk=raw_topk
             )
+
+            if args.use_guardrails:
+                hits_raw = apply_category_guardrails(
+                    hits_raw,
+                    kind=kind,
+                    query_text=q0,
+                    penalty_other=args.penalty_other,
+                    bonus_match=args.bonus_match,
+                    penalty_chestnut=args.penalty_chestnut,
+                )
 
             if args.use_diversify:
                 hits = diversify_results(
@@ -300,6 +317,7 @@ def cmd_compare(args):
                     "query_original": q0,
                     "query_used": q,
                     "notes": notes,
+                    "kind": kind,
                     "model_key": mk,
                     "model_name": r["model_name"],
                     "topk": topk,
@@ -367,6 +385,8 @@ def main():
     s.add_argument("--max-same-token", type=int, default=2)
     s.set_defaults(func=cmd_search)
 
+    s.add_argument("--kind", choices=["food","drink","snack"], required=True)
+
     r = sub.add_parser("recommend")
     r.add_argument("--model", choices=["snowflake", "jina"], default="snowflake")
     r.add_argument("--index-name", default=None)
@@ -421,6 +441,8 @@ def main():
     h.add_argument("--max-same-token", type=int, default=2)
     h.set_defaults(func=cmd_hybrid)
 
+    h.add_argument("--kind", choices=["food","drink","snack"], required=True)
+
     c = sub.add_parser("compare")
     c.add_argument(
         "--models",
@@ -442,6 +464,11 @@ def main():
     c.add_argument("--max-same-cat-mid", type=int, default=2)
     c.add_argument("--max-same-token", type=int, default=2)
     c.set_defaults(func=cmd_compare)
+
+    c.add_argument("--use-guardrails", action="store_true", help="apply cat_large-based guardrails by kind")
+    c.add_argument("--penalty-other", type=float, default=0.25)
+    c.add_argument("--bonus-match", type=float, default=0.05)
+    c.add_argument("--penalty-chestnut", type=float, default=0.35)
 
     args = p.parse_args()
     args.func(args)
