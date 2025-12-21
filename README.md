@@ -176,6 +176,13 @@ python -m src.cli recommend --model snowflake --protein-min 15 --sugar-max 5 --s
 ```bash
 python -m src.cli hybrid --model snowflake --q "야식" --sodium-max 400 --pool 80 --topk 10
 ```
+### 7.7 모델 비교 리포트 생성 (Snowflake vs Jina)
+```bash
+python -m src.cli compare --topk 10
+```
+- 결과는 `outputs/reports/compare_YYYYMMDD_HHMMSS/`에 저장됩니다.
+- `summary.csv` : 쿼리별 Top-K 음식명 리스트 요약
+- `hits_{model}_{query}.csv` : 각 모델의 상세 검색 결과
 ***
 ## 8. 결과 정리 (Results)
 ### 8.1 모델별 비교
