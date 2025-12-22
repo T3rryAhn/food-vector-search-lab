@@ -1,147 +1,117 @@
-# food_vector_search_lab/post_filter.py
 from __future__ import annotations
 
 import re
 import pandas as pd
 
-# food_data.csv의 cat_large 분포 기준
-CAT_LARGE_DRINK = {"음료 및 차류"}
-CAT_LARGE_SNACK = {"빵 및 과자류", "유제품류 및 빙과류"}
 
-# food(kind=food)에서 우선적으로 살릴 “식사류” 카테고리(국물/한끼 의도에 특히 중요)
-CAT_LARGE_MEAL = {
-    "밥류",
-    "국 및 탕류",
-    "찌개 및 전골류",
-    "면 및 만두류",
-    "죽 및 스프류",
-    "볶음류",
-    "구이류",
-    "튀김류",
-    "찜류",
-    "조림류",
-    "전·적 및 부침류",
-    "나물·숙채류",
-    "생채·무침류",
-    "김치류",
-    # 나머지는 “기본 food”로 허용
+# kind -> 허용 cat_large 후보(가드레일용)
+# ※ food_data.csv의 cat_large 값을 기준으로 작성
+KIND_ALLOWED_CAT_LARGE = {
+    "food": [
+        # 식사/반찬/조리식 중심 (예시)
+        "밥류",
+        "면 및 만두류",
+        "국 및 탕류",
+        "찌개 및 전골류",
+        "구이류",
+        "볶음류",
+        "찜 및 조림류",
+        "전 및 부침류",
+        "나물 및 생채류",
+        "김치류",
+        "샐러드류",
+        "소스/드레싱",
+        "기타 음식",
+        "곡류 및 서류",
+        "어패류",
+        "육류",
+        "채소류",
+        "두류",
+        "알류",
+    ],
+    "drink": [
+        "음료 및 차류",
+        "커피",
+        "차류",
+        "주스",
+        "탄산음료",
+        "기타 음료",
+    ],
+    "snack": [
+        "빵 및 과자류",
+        "디저트",
+        "아이스크림",
+        "떡류",
+        "유제품",
+        "기타 간식",
+    ],
 }
 
-# 쿼리 키워드 -> cat_large 부스팅(“추상 키워드”를 데이터 카테고리로 번역)
-INTENT_BOOST_MAP: list[tuple[re.Pattern, dict[str, float]]] = [
-    # 국물/따뜻한 식사류
-    (
-        re.compile(r"(국물|국\b|탕\b|찌개|전골|해장|수프|스프)"),
-        {
-            "국 및 탕류": 0.55,
-            "찌개 및 전골류": 0.55,
-            "죽 및 스프류": 0.35,
-            "면 및 만두류": 0.20,
-        },
-    ),
-    # 음료 의도
-    (
-        re.compile(r"(음료|차\b|커피|라떼|주스|티\b|스무디|에이드)"),
-        {
-            "음료 및 차류": 0.55,
-        },
-    ),
-    # 간식/디저트 의도
-    (
-        re.compile(r"(간식|디저트|빵|과자|케이크|쿠키|아이스크림|빙수|와플|도넛|초콜릿)"),
-        {
-            "빵 및 과자류": 0.45,
-            "유제품류 및 빙과류": 0.45,
-        },
-    ),
-]
 
-# “야식”이 “밤(栗)”로 오인되는 케이스(밤식빵/밤밥 등) 감점: cat_large가 아니라 이름 토큰 기반
-CHESTNUT_PATTERN = re.compile(r"(^|[^가-힣])밤([가-힣]|$)")  # '밤' 단독/접두 정도를 잡는 느낌으로
+def _normalize(s: str) -> str:
+    return (s or "").strip().lower()
 
 
-def _kind_allowed_cat_large(kind: str) -> set[str]:
-    if kind == "drink":
-        return set(CAT_LARGE_DRINK)
-    if kind == "snack":
-        return set(CAT_LARGE_SNACK)
-    # kind == "food"
-    # food는 음료/간식 제외
-    return set(df_cat_large_food_default())
+def _is_chestnut_trap(query_text: str) -> bool:
+    """
+    '야식' 같은 쿼리에서 밤(栗) 토큰이 엉뚱하게 상위로 뜨는 문제를 완화.
+    아주 단순한 룰 기반으로만 감점 적용.
+    """
+    q = _normalize(query_text)
 
-
-def df_cat_large_food_default() -> set[str]:
-    # food 허용군: 식사류(대부분) + 기타(장류 등) 포함
-    # drink/snack은 제외 대상으로 별도 패널티/필터에서 처리
-    return CAT_LARGE_MEAL | {
-        "장류, 양념류",
-        "장아찌·절임류",
-        "젓갈류",
-        "수·조·어·육류",
-        "곡류, 서류 제품",
-        "과일류",
-        "두류, 견과 및 종실류",
-        "채소, 해조류",
-    }
+    # 야식/밤에 먹는 등 "night snack" 의도인데
+    # 결과 음식명이 "밤식빵/밤밥/통밤..." 같은 밤로 오인되는 케이스 완화
+    return ("야식" in q) or ("밤에" in q) or ("늦은" in q)
 
 
 def apply_category_guardrails(
     hits: pd.DataFrame,
+    *,
     kind: str,
     query_text: str,
-    *,
-    hard_filter_mismatch: bool = True,
-    penalty_other: float = 1.0,
+    penalty_other: float = 0.15,
     bonus_match: float = 0.05,
-    penalty_chestnut: float = 0.35, 
+    penalty_chestnut: float = 0.30,
+    debug: bool = False,
 ) -> pd.DataFrame:
+    """
+    A안: drop(필터링)하지 않고 'score'만 조정한다.
+    - kind가 기대하는 cat_large면 소폭 가점(bonus_match)
+    - 아니면 감점(penalty_other)
+    - '야식' 쿼리에서 밤(栗) 오인 토큰이 보이면 추가 감점(penalty_chestnut)
+
+    입력 hits는 반드시 'score', 'cat_large', 'food_name' 컬럼을 가진다고 가정.
+    """
     if hits is None or len(hits) == 0:
         return hits
 
-    out = hits.copy()
-
-    # --- kind 기반 1차 가드레일 ---
-    if kind == "food":
-        mismatch_mask = out["cat_large"].isin(
-            {"음료 및 차류", "빵 및 과자류", "유제품류 및 빙과류"}
-        )
-    elif kind == "drink":
-        mismatch_mask = out["cat_large"] != "음료 및 차류"
-    elif kind == "snack":
-        mismatch_mask = ~out["cat_large"].isin(
-            {"빵 및 과자류", "유제품류 및 빙과류"}
-        )
-    else:
-        mismatch_mask = pd.Series(False, index=out.index)
-
-    if hard_filter_mismatch:
-        out = out.loc[~mismatch_mask].copy()
-    else:
-        out.loc[mismatch_mask, "score"] -= penalty_other
-
-    if len(out) == 0:
+    if "score" not in hits.columns:
         return hits
 
-    # --- kind 일치 보너스 ---
-    if kind == "food":
-        out.loc[
-            ~out["cat_large"].isin(
-                {"음료 및 차류", "빵 및 과자류", "유제품류 및 빙과류"}
-            ),
-            "score",
-        ] += bonus_match
-    elif kind == "drink":
-        out.loc[out["cat_large"] == "음료 및 차류", "score"] += bonus_match
-    elif kind == "snack":
-        out.loc[
-            out["cat_large"].isin({"빵 및 과자류", "유제품류 및 빙과류"}),
-            "score",
-        ] += bonus_match
+    allowed = set(KIND_ALLOWED_CAT_LARGE.get(kind, []))
 
-    # --- 야식 + 밤(栗) 트랩 ---
-    if "야식" in (query_text or ""):
-        chestnut_mask = out["food_name"].str.contains("밤", na=False)
-        out.loc[chestnut_mask, "score"] -= penalty_chestnut
+    out = hits.copy()
 
-    return out.sort_values("score", ascending=False).reset_index(drop=True)
+    # 점수 조정: cat_large 일치/불일치
+    if "cat_large" in out.columns and allowed:
+        is_match = out["cat_large"].fillna("").isin(allowed)
+        out.loc[is_match, "score"] = out.loc[is_match, "score"] + bonus_match
+        out.loc[~is_match, "score"] = out.loc[~is_match, "score"] - penalty_other
 
+    # 밤(栗) 트랩 감점(야식 의도에서만)
+    if _is_chestnut_trap(query_text) and "food_name" in out.columns:
+        # "밤" 단어가 들어간 결과만 감점(너무 과하면 regex를 더 빡세게 가능)
+        has_bam = out["food_name"].fillna("").str.contains(r"밤", regex=True)
+        out.loc[has_bam, "score"] = out.loc[has_bam, "score"] - penalty_chestnut
+
+    # 정렬 유지: score 기준 내림차순
+    out = out.sort_values("score", ascending=False).reset_index(drop=True)
+
+    if debug:
+        try:
+            top = out["cat_large"].value_counts().head(5).to_dict()
+            print(f"[DBG] guardrails kind={kind} allowed={len(allowed)} top_cat_large={top}")
+        except Exception:
+            pass
+
+    return out
