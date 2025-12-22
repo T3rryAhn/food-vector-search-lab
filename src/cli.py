@@ -4,12 +4,13 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 import json
+import openai
 
 import pandas as pd
 
 from .config import settings
 from .load_data import load_food_df
-from .embedder import LocalSentenceTransformerEmbedder
+from .embedder import LocalSentenceTransformerEmbedder, OpenAIEmbedder
 from .text_index import build_faiss_index, load_index, load_meta, search_index
 from .recommender import (
     NutrientFilters,
@@ -26,6 +27,7 @@ from .post_filter import apply_category_guardrails
 MODEL_MAP = {
     "snowflake": settings.model_snowflake,
     "jina": settings.model_jina,
+    "openai": "text-embedding-3-small",
 }
 
 
@@ -51,7 +53,10 @@ def cmd_build_index(args):
     df = load_food_df(args.data)
     model_name = resolve_model_name(args.model)
 
-    embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
+    if args.model == "openai":
+        embedder = OpenAIEmbedder(model_name=model_name)
+    else:
+        embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
 
     idx_name = args.index_name or index_name_for(args.model)
     art = build_faiss_index(
@@ -69,7 +74,12 @@ def cmd_build_index(args):
 
 def cmd_search(args):
     model_name = resolve_model_name(args.model)
-    embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
+
+    # OpenAI 모델을 사용할 경우 GMS 서버를 거쳐 임베딩을 받아오는 방식
+    if args.model == "openai":
+        embedder = OpenAIEmbedder(model_name=model_name)
+    else:
+        embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
 
     idx_name = args.index_name or index_name_for(args.model)
     index_path, meta_path = index_paths(idx_name)
@@ -185,7 +195,12 @@ def cmd_recommend(args):
 
 def cmd_hybrid(args):
     model_name = resolve_model_name(args.model)
-    embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
+
+    # OpenAI 모델을 사용할 경우 GMS 서버를 거쳐 임베딩을 받아오는 방식
+    if args.model == "openai":
+        embedder = OpenAIEmbedder(model_name=model_name)
+    else:
+        embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
 
     idx_name = args.index_name or index_name_for(args.model)
     index_path, meta_path = index_paths(idx_name)
@@ -278,7 +293,12 @@ def cmd_compare(args):
     runners = {}
     for mk in models:
         model_name = resolve_model_name(mk)
-        embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
+        print(model_name)
+        # OpenAI 모델을 사용할 경우 GMS 서버를 거쳐 임베딩을 받아오는 방식
+        if mk == "openai":
+            embedder = OpenAIEmbedder(model_name=model_name)
+        else:
+            embedder = LocalSentenceTransformerEmbedder(model_name=model_name, device=args.device)
 
         idx_name = index_name_for(mk)
         index_path, meta_path = index_paths(idx_name)
@@ -377,16 +397,18 @@ def main():
     p = argparse.ArgumentParser(prog="food-vector-search-lab")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    # 인덱스 빌드 커맨드
     b = sub.add_parser("build-index")
     b.add_argument("--data", default=str(settings.data_path))
-    b.add_argument("--model", choices=["snowflake", "jina"], default="snowflake")
+    b.add_argument("--model", choices=["snowflake", "jina", "openai"], default="snowflake")  # openai 추가
     b.add_argument("--index-name", default=None)
     b.add_argument("--batch-size", type=int, default=128)
     b.add_argument("--device", default=None, help='e.g. "cpu" or "cuda"')
     b.set_defaults(func=cmd_build_index)
 
+    # 검색 커맨드
     s = sub.add_parser("search")
-    s.add_argument("--model", choices=["snowflake", "jina"], default="snowflake")
+    s.add_argument("--model", choices=["snowflake", "jina", "openai"], default="snowflake")  # openai 추가
     s.add_argument("--index-name", default=None)
     s.add_argument("--kind", choices=["food", "drink", "snack"], required=True)
     s.add_argument("--q", required=True)
@@ -402,8 +424,9 @@ def main():
     s.add_argument("--debug", action="store_true")
     s.set_defaults(func=cmd_search)
 
+    # 추천 커맨드
     r = sub.add_parser("recommend")
-    r.add_argument("--model", choices=["snowflake", "jina"], default="snowflake")
+    r.add_argument("--model", choices=["snowflake", "jina", "openai"], default="snowflake")  # openai 추가
     r.add_argument("--index-name", default=None)
     r.add_argument("--topk", type=int, default=10)
 
@@ -426,8 +449,9 @@ def main():
     r.add_argument("--max-same-token", type=int, default=2)
     r.set_defaults(func=cmd_recommend)
 
+    # 하이브리드 커맨드
     h = sub.add_parser("hybrid")
-    h.add_argument("--model", choices=["snowflake", "jina"], default="snowflake")
+    h.add_argument("--model", choices=["snowflake", "jina", "openai"], default="snowflake")  # openai 추가
     h.add_argument("--index-name", default=None)
     h.add_argument("--kind", choices=["food", "drink", "snack"], required=True)
     h.add_argument("--q", required=True)
@@ -460,8 +484,9 @@ def main():
     h.add_argument("--debug", action="store_true")
     h.set_defaults(func=cmd_hybrid)
 
+    # 비교 커맨드
     c = sub.add_parser("compare")
-    c.add_argument("--models", nargs="+", default=["snowflake", "jina"], choices=["snowflake", "jina"])
+    c.add_argument("--models", nargs="+", default=["snowflake", "jina", "openai"], choices=["snowflake", "jina", "openai"])  # openai 추가
     c.add_argument("--topk", type=int, default=10)
     c.add_argument("--device", default=None, help='e.g. "cpu" or "cuda"')
 

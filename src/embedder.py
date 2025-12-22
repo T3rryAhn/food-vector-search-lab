@@ -1,6 +1,11 @@
 from __future__ import annotations
+import json
 from typing import List, Protocol
 import numpy as np
+
+import openai
+import requests
+from .config import Settings
 
 class Embedder(Protocol):
     dim: int
@@ -31,7 +36,33 @@ class LocalSentenceTransformerEmbedder:
         )
         return np.asarray(vecs, dtype=np.float32)
 
-# B안은 다음 단계에서 실제 구현 예정
+# B안
 class OpenAIEmbedder:
-    def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
-        raise NotImplementedError("B안(OpenAIEmbedder)은 다음 단계에서 추가합니다.")
+    def __init__(self, model_name: str = "text-embedding-3-small"):
+        self.model_name = model_name
+        self.api_url = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/embeddings"
+
+    def embed(self, texts: list[str], batch_size: int = 128) -> np.ndarray:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {Settings.OPENAI_API_KEY}"  # GMS API 키를 사용
+        }
+        
+        embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            
+            data = {
+                "model": self.model_name,
+                "input": batch
+            }
+            
+            response = requests.post(self.api_url, headers=headers, data=json.dumps(data))
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                embeddings.extend([embedding['embedding'] for embedding in response_data['data']])
+            else:
+                print(f"Error: {response.status_code}, {response.text}")
+        
+        return np.array(embeddings)
