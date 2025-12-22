@@ -134,13 +134,86 @@
 
 ## 6. 실험 설계 (Experimental Design)
 
-### 6.1 평가 쿼리셋 설계
+### 6. 결론 요약
+#### 결론 1
+```
+임베딩 검색은 “의도 후보를 모으는 도구”이지,
+정답을 바로 주는 도구가 아니다
 
-### 6.2 정성 평가 기준 (Human Judgement)
+"뜨끈한 국물" → 커피/차류가 상위로 쏠리는 현상 다수 발생
 
-### 6.3 정량 평가 기준 (Metrics)
+이유:
 
+임베딩 모델은
+“뜨겁다 = HOT = 음료” 같은 언어적 연관성을 강하게 학습함
 
+음식 DB에는 “온도”라는 개념이 명시적으로 존재하지 않음
+```
+
+#### 결론 2
+```
+카테고리 가드레일은 drop이 아니라 score 조정이어야 한다
+
+초반 시도:
+
+  food 검색 시 음료/차류를 강제로 제거
+
+  결과: 후보가 통째로 비어버리는 케이스 발생
+
+현재 방식:
+
+  cat_large 기준으로
+
+  의도와 다른 카테고리는 감점
+
+  일치하는 카테고리는 소폭 가산
+
+hard filter (drop) 방식 비추
+
+soft guardrail (penalty / bonus) 감점 방식으로 진행
+
+>> Retrieval 단계에서는 과하게 거르지 않는다
+```
+
+#### 결론 3
+```
+“뜨끈함 / 시원함” 같은 감각은
+쿼리 확장 + 후처리로 다루자
+
+DB에 없는 개념을
+
+ 임베딩 하나로 해결하려 하면 망함
+
+대신
+
+  쿼리 확장 (국/탕/찌개 힌트)
+
+  카테고리 가드레일
+
+  영양소 재랭킹
+
+  다양화 후처리
+
+>> 여러 약한 신호를 합쳐서 방향만 맞춘다
+```
+### 6. 검색 flow
+```
+[Query]
+   ↓
+(Query Expansion, optional)
+   ↓
+Vector Retrieval (FAISS)
+   ↓
+Category Guardrails (score 조정)
+   ↓
+Diversify (중복 토큰/카테고리 제한)
+   ↓
+(optional) Nutrient Filter
+   ↓
+(optional) Hybrid Re-ranking
+   ↓
+Top-K Results
+```
 ---
 
 ## 7. 실행 방법 (How to Run)
@@ -172,23 +245,35 @@ python -m src.cli search --model jina --q "운동 후 단백질 많은 음식" -
 ```
 ver2 중복 토큰 방지 및 쿼리 확장
 ```bash
-python -m src.cli search --model snowflake --q "야식" --topk 10 \
-  --max-same-cat-mid 2 --max-same-token 1
-  python -m src.cli search --model jina --q "야식" --topk 10 \
-  --max-same-cat-mid 2 --max-same-token 1
+python -m src.cli search \
+  --model snowflake \
+  --kind food \
+  --q "뜨끈한 국물" \
+  --topk 10 \
+  --use-query-expansion \
+  --debug
 ```
 
 ### 7.5 영양소 기반 추천 (Nutreint-only Rerank)
 ```bash
-python -m src.cli recommend --protein-min 15 --sugar-max 5 --sodium-max 500 --topk 10
+python -m src.cli recommend \
+  --protein-min 15 \
+  --sodium-max 500 \
+  --topk 10
 ```
-### 7.6 Hybrid (텍스트 후보 풀 -> 영양소 재랭킹)
+### 7.6 Hybrid (검색 -> 영양소 재랭킹)
 ```bash
-python -m src.cli hybrid --model snowflake --q "야식" --sodium-max 400 --pool 80 --topk 10
+python -m src.cli hybrid \
+  --model snowflake \
+  --kind food \
+  --q "야식" \
+  --sodium-max 400 \
+  --use-query-expansion \
+  --topk 10
 ```
 ### 7.7 모델 비교 리포트 생성 (Snowflake vs Jina)
 ```bash
-python -m src.cli compare --topk 10
+python -m src.cli compare --topk 10 --use-query-expansion --use-diversify --use-guardrails
 ```
 - 결과는 `outputs/reports/compare_YYYYMMDD_HHMMSS/`에 저장됩니다.
 - `summary.csv` : 쿼리별 Top-K 음식명 리스트 요약
