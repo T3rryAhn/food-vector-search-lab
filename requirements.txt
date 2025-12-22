@@ -1,0 +1,12 @@
+pandas
+numpy
+pyarrow
+tqdm
+python-dotenv
+
+faiss-cpu
+sentence-transformers
+transformers
+torch
+scikit-learn
+einops
