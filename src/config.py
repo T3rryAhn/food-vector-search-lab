@@ -20,7 +20,8 @@ class Settings:
     model_jina: str = "jinaai/jina-embeddings-v3"  # 필요시 repo id만 바꾸면 됨
 
     # B안(OpenAI)에서 사용
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
+    # OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "").strip()
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
 
 settings = Settings()
 settings.outputs_dir.mkdir(parents=True, exist_ok=True)
