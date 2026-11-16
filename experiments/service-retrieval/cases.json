@@ -1,0 +1,74 @@
+[
+  {
+    "id": "lunch",
+    "query": "간단한 점심 한 끼",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "protein",
+    "query": "운동 후 단백질 많은 한 끼",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "soup",
+    "query": "따뜻한 국물",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "cold",
+    "query": "차가운 면 요리",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "mild",
+    "query": "맵지 않은 저녁 메뉴",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "low_salt",
+    "query": "짜지 않은 국물 요리",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "specific",
+    "query": "김치볶음밥",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "vegetarian",
+    "query": "고기 없는 채소 위주 한 끼",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "category",
+    "query": "매콤한 면 요리",
+    "category": "면 및 만두류",
+    "k": 6
+  },
+  {
+    "id": "drink",
+    "query": "시원한 음료",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "snack",
+    "query": "달콤한 디저트",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "tags",
+    "query": "차가운 담백한 가벼운 부드러운",
+    "category": "",
+    "k": 6
+  }
+]

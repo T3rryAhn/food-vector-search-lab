@@ -1,0 +1,44 @@
+{
+  "experiment": "service-retrieval",
+  "run": "2026-11-16-baseline",
+  "status": "observed-baseline-not-an-improvement",
+  "lab_commit": "f51c2e567b9aa5f765d4bff4af5fb58592bd66f5",
+  "service_upstream": {
+    "repository": "DevOops-Korea/EATIT_back_ai",
+    "commit": "bc9d1e8c93801370015c1c9da333df40c1a221d5",
+    "note": "Deployed service includes a separate deployment overlay. Upstream commit alone is NOT sufficient to recreate this run."
+  },
+  "model": {
+    "id": "Snowflake/snowflake-arctic-embed-l-v2.0",
+    "revision": "ac6544c8a46e00af67e330e85a9028c66b8cfd9a",
+    "configured_query_prompt": "query: ",
+    "actual_query_prefix": "Represent this sentence for searching relevant passages: "
+  },
+  "method": {
+    "queries": 12,
+    "k": 6,
+    "sequential_interval_seconds": 1,
+    "route": "/recommend",
+    "community_counters_affected": false,
+    "query_origin": "authored evaluation inputs, not visitor logs",
+    "timing_scope": "warm-model local HTTP request, not browser latency or load test"
+  },
+  "limitations": [
+    "Single run; no before/after comparison yet",
+    "Subjective judgments by coding assistant, not independent user ratings",
+    "Index generation provenance not yet verified",
+    "Current lab CLI does not reproduce this service baseline"
+  ],
+  "code_sha256": {
+    "service_main.py": "abfe1a8fd440c946b17f96f684c0658499275526e4fe759368b971006289328b",
+    "query_expansion.py": "767dd94802a6e3f738c05f468f65f4b0008524d3ea8c86bead5aef7f791241b5",
+    "diversify.py": "6a4a2dad15b0d107fc0886742332df52098d5cb583bf6c2558e671337d762246"
+  },
+  "local_artifact_sha256": {
+    "data/food_data.csv": "6cdf3a431779decd5846a27d99ba0de87935d69f91c8e922602b9aa13f54b788",
+    "outputs/indices/food_meta.pkl": "1adeef8c18afe5ad76bbfd9fb1ba9dd02cf22c1a21f0cef711c9dd100769f0a2",
+    "outputs/indices/food_faiss.index": "03cf8693fa738635be05c0cf5ce53faf4b339ff71a4f2e6fc72ea5d2ef3508c6"
+  },
+  "artifact_note": "Hashes above identify the local upstream checkout artifacts. Server artifact equality was not checked; do not treat as verified runtime index hashes.",
+  "results_sha256": "36a394efc250f4100d9d61b4a5e40eec83d732db8b275e1cdbb88cb4bd963743"
+}
