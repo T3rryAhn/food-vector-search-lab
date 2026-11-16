@@ -25,7 +25,7 @@
 ## 기록 원칙
 
 - 발견 → 가설 → 통제한 비교 → 관측 → 채택/기각 → 운영 적용 여부 순서로 기록한다.
-- 계획은 실험 결과가 아니다. 현재 완료한 것은 기준선 평가이며 품질 개선 수치는 아직 없다.
+- 계획은 실험 결과가 아니다. 기준선과 첫 개선 비교/배포를 완료했다. 독립 평가셋 기반 정확도는 아직 없다.
 - 검색어는 작성한 가상 입력이다. 방문자 검색 기록, IP, 개인별 선택, 인증/운영 접근 정보는 넣지 않는다.
 - 원본 run은 고정한다. 재실행은 새 run 디렉터리에 기록한다.
 - 코드/모델/데이터/인덱스 버전, query prompt, 후보 수, 필터/다양화 설정, 평가셋, 지연 측정 범위를 함께 기록한다. 확인하지 못한 것은 미확인으로 남긴다.
@@ -33,3 +33,14 @@
 - 서비스 평가와 Lab 모델 비교는 서로 다른 구현이다. 구현 차이를 통제하기 전에는 직접 우열을 비교하지 않는다.
 
 새 run에는 `manifest.json`, `results.json`, `report.md`를 만든다. 이번 `cases.json`은 탐색용 기준선으로 유지하고, 이를 보고 수정한 후에는 별도 미사용 표현/예외 셋으로 과적합도 확인한다.
+
+## 첫 개선 결과와 실행
+
+[비교·기각·채택 기록](runs/2026-11-16-improvement/report.md)을 추가했다. 실행 도구는 이 트랙의 tools 아래에만 있으며 기존 src CLI와 분리했다.
+
+```sh
+# 버전이 맞는 서비스 의존성/모델 캐시 환경에서, 운영 프로세스와 별도로 실행
+python experiments/service-retrieval/tools/compare_service.py --service-root /path/to/service-checkout --cases experiments/service-retrieval/comparison-cases.json --enhanced > new-run.json
+```
+
+모델/데이터/인덱스를 재생성하지 않는다. API 집계도 호출하지 않는다. 실행 시 service source의 query_expansion/diversify가 기준선 manifest와 맞는지 확인해야 한다. 서비스 모듈을 import하므로 실제 운영 파일 대신 고정 checkout 사용을 권장한다. 결과의 hashes와 도구 commit을 함께 보관한다. 모델이 메모리에 한 번 더 로드되므로 자원 여유가 있는 환경에서 순차 실행한다.

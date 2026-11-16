@@ -1,0 +1,38 @@
+[
+  {
+    "id": "egg",
+    "query": "계란찜",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "tofu",
+    "query": "두부찌개",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "summer",
+    "query": "여름에 먹을 시원한 국수",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "coffee",
+    "query": "식후에 마실 아이스 커피",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "tea",
+    "query": "따뜻한 차",
+    "category": "",
+    "k": 6
+  },
+  {
+    "id": "plain",
+    "query": "맵지 않은 면 요리",
+    "category": "",
+    "k": 6
+  }
+]
