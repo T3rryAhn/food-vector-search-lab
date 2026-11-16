@@ -87,4 +87,3 @@ def recommend_food(
         return df_diversified.to_dict(orient="records")
 
     return []
-

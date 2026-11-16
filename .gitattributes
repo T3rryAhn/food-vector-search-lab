@@ -1,0 +1,3 @@
+
+experiments/service-retrieval/**/*.json text eol=lf
+experiments/service-retrieval/**/*.py text eol=lf
